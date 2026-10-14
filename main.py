@@ -235,8 +235,8 @@ class BotMonteCarlo:
         time_for_move = self.time_for_move / len(get_legal_moves)
         for move in get_legal_moves:
             sum_of_points = 0
-            czas_start = time.time()
-            while time.time() - czas_start < time_for_move:
+            start_time = time.time()
+            while time.time() - start_time < time_for_move:
                 board_copy = board_object.clone()
                 board_copy.make_move(move, self.bot)
                 sum_of_points += self._simulate_game(board_copy, self.opponent_mark)
