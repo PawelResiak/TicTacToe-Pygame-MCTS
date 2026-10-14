@@ -9,7 +9,7 @@ class GameView:
     def __init__(self):
         pygame.init()
 
-        self.okno = pygame.display.set_mode((800, 600))
+        self.grid = pygame.display.set_mode((800, 600))
         self.clock = pygame.time.Clock()
 
 
@@ -17,7 +17,7 @@ class GameView:
         self.width = width
         self.height = height
         self.grid_size = (width * 100, height * 100)
-        self.okno = pygame.display.set_mode(self.grid_size)
+        self.grid = pygame.display.set_mode(self.grid_size)
 
     def get_click(self) -> tuple:
         for event in pygame.event.get():
@@ -32,7 +32,7 @@ class GameView:
         return None
 
     def refresh_screen(self, board):
-        self.okno.fill((255, 255, 255))
+        self.grid.fill((255, 255, 255))
         self.draw_board()
         self.draw_symbols(board)
         pygame.display.flip()
@@ -42,30 +42,30 @@ class GameView:
     def draw_board(self):
         for i in range(1, self.width):
             x = i * 100
-            pygame.draw.line(self.okno, (0, 0, 0), (x, 0), (x, self.grid_size[1]), 3)
+            pygame.draw.line(self.grid, (0, 0, 0), (x, 0), (x, self.grid_size[1]), 3)
 
         for i in range(1, self.height):
             y = i * 100
-            pygame.draw.line(self.okno, (0, 0, 0), (0, y), (self.grid_size[0], y), 3)
+            pygame.draw.line(self.grid, (0, 0, 0), (0, y), (self.grid_size[0], y), 3)
 
     def draw_o(self, row, column):
         middle_x = column * 100 + 50
         middle_y = row * 100 + 50
-        pygame.draw.circle(self.okno, (0, 0, 255), (middle_x, middle_y), 35, 5)
+        pygame.draw.circle(self.grid, (0, 0, 255), (middle_x, middle_y), 35, 5)
 
     def draw_x(self, row, column):
         middle_x = column * 100 + 50
         middle_y = row * 100 + 50
-        pygame.draw.line(self.okno, (255, 0, 0), (middle_x - 35, middle_y - 35), (middle_x + 35, middle_y + 35), 5)
-        pygame.draw.line(self.okno, (255, 0, 0), (middle_x + 35, middle_y - 35), (middle_x - 35, middle_y + 35), 5)
+        pygame.draw.line(self.grid, (255, 0, 0), (middle_x - 35, middle_y - 35), (middle_x + 35, middle_y + 35), 5)
+        pygame.draw.line(self.grid, (255, 0, 0), (middle_x + 35, middle_y - 35), (middle_x - 35, middle_y + 35), 5)
 
     def draw_symbols(self, board):
         for y in range(self.height):
             for x in range(self.width):
-                znak = board.grid[y * self.width + x]
-                if znak == 'O':
+                mark = board.grid[y * self.width + x]
+                if mark == 'O':
                     self.draw_o(y, x)
-                elif znak == 'X':
+                elif mark == 'X':
                     self.draw_x(y, x)
 
 
@@ -163,7 +163,7 @@ class BotMinimax_3x3:
 
         
     def _minmax(self, board_object, current_player_mark):
-        result = board_object.check_win_streakner()
+        result = board_object.check_winner()
         if result == 'draw':
             return 0
         elif result == self.bot:
@@ -261,8 +261,8 @@ class Game:
         self.game_type = self.choice_menu(mode)
 
         if self.game_type == 2:
-            opcje_znaku = [("Play as a (O)", "O"), ("Play as a(X)", "X")]
-            self.human_mark = self.choice_menu(opcje_znaku)
+            mark_option = [("Play as a (O)", "O"), ("Play as a (X)", "X")]
+            self.human_mark = self.choice_menu(mark_option)
             self.bot_mark = "X" if self.human_mark == "O" else "O"
 
             difficulty_options = [("Easy", 1), ("Medium", 2), ("Hard", 3)]
@@ -274,10 +274,10 @@ class Game:
             ("Huge 10x10 (win_streak: 5)", (10, 10, 5)),
             ("Gomoku 19x19 (win_streak: 5)", (19, 19, 5))
         ]
-        wybrana_board = self.choice_menu(board_size)
-        self.width = wybrana_board[0]
-        self.height = wybrana_board[1]
-        self.win_streak = wybrana_board[2]
+        chosen_board = self.choice_menu(board_size)
+        self.width = chosen_board[0]
+        self.height = chosen_board[1]
+        self.win_streak = chosen_board[2]
 
         self.interface.set_board_size(self.width, self.height)
         self.board = Board(self.width, self.height, self.win_streak)
@@ -305,9 +305,9 @@ class Game:
                         if button.is_clicked(event.pos):
                             return value
 
-            self.interface.okno.fill((255, 255, 255))
+            self.interface.grid.fill((255, 255, 255))
             for button, _ in buttons:
-                button.draw(self.interface.okno)
+                button.draw(self.interface.grid)
             pygame.display.flip()
             self.interface.clock.tick(60)
     
@@ -315,23 +315,23 @@ class Game:
     
     def end_screen(self, result):
         if result == 'draw':
-            komunikat = "draw!"
+            announcement = "draw!"
         elif self.game_type == 1:
-            komunikat = f"Player {result} won!"
+            announcement = f"Player {result} won!"
         elif self.game_type == 2:
             if result == self.human_mark:
-                komunikat = "You win!"
+                announcement = "You win!"
             else:
-                komunikat = "You lose!"
+                announcement = "You lose!"
         else:
-            komunikat = f"Bot {result} won!"
+            announcement = f"Bot {result} won!"
 
         middle_x = self.interface.grid_size[0] // 2
         middle_y = self.interface.grid_size[1] // 2
 
         font = pygame.font.Font(None, 72)
-        napis = font.render(komunikat, True, (0, 0, 0), (255, 255, 255))
-        napis_rect = napis.get_rect(center=(middle_x, middle_y - 50))
+        subtitle = font.render(announcement, True, (0, 0, 0), (255, 255, 255))
+        subtitle_rect = subtitle.get_rect(center=(middle_x, middle_y - 50))
 
         button_restart = Button(middle_x - 150, middle_y + 20, 300, 60, "Play again", (100, 200, 100))
 
@@ -344,12 +344,12 @@ class Game:
                     if button_restart.is_clicked(event.pos):
                         return True
 
-            self.interface.okno.fill((255, 255, 255))
+            self.interface.grid.fill((255, 255, 255))
             self.interface.draw_board()
             self.interface.draw_symbols(self.board)
             
-            self.interface.okno.blit(napis, napis_rect)
-            button_restart.draw(self.interface.okno)
+            self.interface.grid.blit(subtitle, subtitle_rect)
+            button_restart.draw(self.interface.grid)
             
             pygame.display.flip()
             self.interface.clock.tick(15)
@@ -361,12 +361,11 @@ class Game:
         while running:
             self.interface.refresh_screen(self.board)
 
-
             result = self.board.check_winner()
 
             if result is not None:
-                chce_zagrac_ponownie = self.end_screen(result)
-                return chce_zagrac_ponownie
+                play_again = self.end_screen(result)
+                return play_again
 
             if self.game_type == 2 and self.current_player_mark == self.bot_mark:
                 index = self._bot_move(self.bot_mark)
@@ -388,29 +387,6 @@ class Game:
                 else:
                     print("This field is already occupied. Please choose another field.")
 
-
-
-    def _check_win_streakner(self, result):
-        if result == 'draw':
-            print('draw!')
-            return
-
-        if self.game_type == 1:
-            if result == 'X':
-                print("Player X won!")
-            else:
-                print("Player O won!")
-        elif self.game_type == 2:
-            if result == self.human_mark:
-                print("You win!")
-            else:
-                print("You lose!")
-        else:
-            if result == 'X':
-                print("Bot X won!")
-            else:
-                print("Bot O won!")
-
     
     
     def _bot_move(self, bot_mark):
@@ -420,19 +396,19 @@ class Game:
         else:
             difficulty_level = self.difficulty_level_x if bot_mark == 'X' else self.difficulty_level_o
             
-        ilosc_opcji = len(self.board.get_legal_moves())
-        konfiguracja_czasu = {1: (0.2, 0.03), 2: (0.5, 0.05), 3: (2.0, 0.15)}
-        baza, mnoznik = konfiguracja_czasu[difficulty_level]
-        time_for_move = baza + (mnoznik * ilosc_opcji)
-        
-        aktywny_bot = BotMonteCarlo(bot_mark, time_for_move)
-        
-        return aktywny_bot.find_best_move(self.board)
+        possible_moves = len(self.board.get_legal_moves())
+        time_configuration = {1: (0.2, 0.03), 2: (0.5, 0.05), 3: (2.0, 0.15)}
+        base, multiplier = time_configuration[difficulty_level]
+        time_for_move = base + (multiplier * possible_moves)
+
+        active_bot = BotMonteCarlo(bot_mark, time_for_move)
+
+        return active_bot.find_best_move(self.board)
 
 
 
 if __name__ == '__main__':
     game_on = True
     while game_on:
-        new_gra = Game()
-        game_on = new_gra.start()
+        new_game = Game()
+        game_on = new_game.start()
