@@ -16,8 +16,8 @@ class GameView:
     def set_board_size(self, width, height):
         self.width = width
         self.height = height
-        self.rozmiar_okna = (width * 100, height * 100)
-        self.okno = pygame.display.set_mode(self.rozmiar_okna)
+        self.grid_size = (width * 100, height * 100)
+        self.okno = pygame.display.set_mode(self.grid_size)
 
     def get_click(self) -> tuple:
         for event in pygame.event.get():
@@ -42,11 +42,11 @@ class GameView:
     def draw_board(self):
         for i in range(1, self.width):
             x = i * 100
-            pygame.draw.line(self.okno, (0, 0, 0), (x, 0), (x, self.rozmiar_okna[1]), 3)
+            pygame.draw.line(self.okno, (0, 0, 0), (x, 0), (x, self.grid_size[1]), 3)
 
         for i in range(1, self.height):
             y = i * 100
-            pygame.draw.line(self.okno, (0, 0, 0), (0, y), (self.rozmiar_okna[0], y), 3)
+            pygame.draw.line(self.okno, (0, 0, 0), (0, y), (self.grid_size[0], y), 3)
 
     def draw_o(self, row, column):
         middle_x = column * 100 + 50
@@ -97,9 +97,9 @@ class Board:
         self.height = height
         self.win_streak = win_streak
         self.grid = [' ']* (self.height * self.width)
-        self.winning_lines = self.generowanie_wygranych()
+        self.winning_lines = self.winning_lines()
 
-    def generowanie_wygranych(self):
+    def winning_lines(self):
         width = self.width
         height = self.height
         win_streak = self.win_streak
@@ -249,39 +249,36 @@ class BotMonteCarlo:
 
 
 
-class Gra:
+class Game:
     def __init__(self):
         self.interface = GameView()
         self.history = []
 
-        # 1. Wybór trybu gry
         mode = [
             ("player vs player", 1),
             ("player vs bot", 2)
         ]
-        self.rodzaj_gry = self.choice_menu(mode)
+        self.game_type = self.choice_menu(mode)
 
-        # 2. Jeśli gra z botem, pytamy o szczegóły
-        if self.rodzaj_gry == 2:
+        if self.game_type == 2:
             opcje_znaku = [("Play as a (O)", "O"), ("Play as a(X)", "X")]
-            self.znak_czlowieka = self.choice_menu(opcje_znaku)
-            self.znak_bota = "X" if self.znak_czlowieka == "O" else "O"
+            self.human_mark = self.choice_menu(opcje_znaku)
+            self.bot_mark = "X" if self.human_mark == "O" else "O"
 
-            difficulty_options = [("Poziom Łatwy", 1), ("Poziom Średni", 2), ("Poziom Trudny", 3)]
+            difficulty_options = [("Easy", 1), ("Medium", 2), ("Hard", 3)]
             self.difficulty_level = self.choice_menu(difficulty_options)
 
-        # 3. Wybór rozmiaru planszy (Gotowe pakiety wymiarów i warunków winning_linesj)
         board_size = [
-            ("Klasyczna 3x3 (win_streak: 3)", (3, 3, 3)),
-            ("Rozszerzona 5x5 (win_streak: 4)", (5, 5, 4)),
-            ("Ogromna 10x10 (win_streak: 5)", (10, 10, 5))
+            ("Classic 3x3 (win_streak: 3)", (3, 3, 3)),
+            ("Expanded 5x5 (win_streak: 4)", (5, 5, 4)),
+            ("Huge 10x10 (win_streak: 5)", (10, 10, 5)),
+            ("Gomoku 19x19 (win_streak: 5)", (19, 19, 5))
         ]
         wybrana_board = self.choice_menu(board_size)
         self.width = wybrana_board[0]
         self.height = wybrana_board[1]
         self.win_streak = wybrana_board[2]
 
-        # 4. Inicjalizacja gry po zebraniu danych
         self.interface.set_board_size(self.width, self.height)
         self.board = Board(self.width, self.height, self.win_streak)
         self.current_player_mark = 'X'
@@ -289,15 +286,13 @@ class Gra:
     
     
     def choice_menu(self, opcje):
-        # opcje to lista krotek, np. [("Tekst na przycisku", zwracana_wartosc), ...]
         buttons = []
-        start_y = 100 # Wysokość, od której zaczynamy rysować pierwszy przycisk
-        
-        # Generator: przechodzi przez listę opcji i automatycznie buduje z nich buttons
-        for tekst, wartosc in opcje:
+        start_y = 100
+
+        for tekst, value in opcje:
             new_button = Button(200, start_y, 400, 60, tekst, (100, 100, 200))
-            buttons.append((new_button, wartosc))
-            start_y += 80 # Każdy kolejny przycisk będzie o 80 pikseli niżej
+            buttons.append((new_button, value))
+            start_y += 80
             
         while True:
             for event in pygame.event.get():
@@ -305,11 +300,10 @@ class Gra:
                     pygame.quit()
                     sys.exit()
                 
-                # Sprawdzanie, czy kliknięto w którykolwiek przycisk
                 if event.type == pygame.MOUSEBUTTONDOWN:
-                    for button, wartosc in buttons:
+                    for button, value in buttons:
                         if button.is_clicked(event.pos):
-                            return wartosc
+                            return value
 
             self.interface.okno.fill((255, 255, 255))
             for button, _ in buttons:
@@ -319,27 +313,27 @@ class Gra:
     
     
     
-    def ekran_koncowy(self, result):
+    def end_screen(self, result):
         if result == 'draw':
             komunikat = "draw!"
-        elif self.rodzaj_gry == 1:
-            komunikat = f"Wygrał player_mark {result}!"
-        elif self.rodzaj_gry == 2:
-            if result == self.znak_czlowieka:
-                komunikat = "Wygrałeś!"
+        elif self.game_type == 1:
+            komunikat = f"Player {result} won!"
+        elif self.game_type == 2:
+            if result == self.human_mark:
+                komunikat = "You win!"
             else:
-                komunikat = "Przegrałeś!"
+                komunikat = "You lose!"
         else:
-            komunikat = f"Bot {result} wygrał!"
+            komunikat = f"Bot {result} won!"
 
-        middle_x = self.interface.rozmiar_okna[0] // 2
-        middle_y = self.interface.rozmiar_okna[1] // 2
+        middle_x = self.interface.grid_size[0] // 2
+        middle_y = self.interface.grid_size[1] // 2
 
-        czcionka = pygame.font.Font(None, 72)
-        napis = czcionka.render(komunikat, True, (0, 0, 0), (255, 255, 255))
+        font = pygame.font.Font(None, 72)
+        napis = font.render(komunikat, True, (0, 0, 0), (255, 255, 255))
         napis_rect = napis.get_rect(center=(middle_x, middle_y - 50))
 
-        button_restart = Button(middle_x - 150, middle_y + 20, 300, 60, "Zagraj ponownie", (100, 200, 100))
+        button_restart = Button(middle_x - 150, middle_y + 20, 300, 60, "Play again", (100, 200, 100))
 
         while True:
             for event in pygame.event.get():
@@ -348,13 +342,12 @@ class Gra:
                     sys.exit()
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     if button_restart.is_clicked(event.pos):
-                        return True # player_mark zdecydował się na restart
+                        return True
 
             self.interface.okno.fill((255, 255, 255))
             self.interface.draw_board()
             self.interface.draw_symbols(self.board)
             
-            # Wierzch: Od razu nakładamy napis i przycisk
             self.interface.okno.blit(napis, napis_rect)
             button_restart.draw(self.interface.okno)
             
@@ -369,27 +362,23 @@ class Gra:
             self.interface.refresh_screen(self.board)
 
 
-            # Sędziowanie
             result = self.board.check_winner()
 
             if result is not None:
-                chce_zagrac_ponownie = self.ekran_koncowy(result)
-                return chce_zagrac_ponownie # True jeśli player_mark chce zagrać ponownie, False jeśli nie
+                chce_zagrac_ponownie = self.end_screen(result)
+                return chce_zagrac_ponownie
 
-            # 3. ROZDZIELENIE TUR: Gra z botem i jego tura
-            if self.rodzaj_gry == 2 and self.current_player_mark == self.znak_bota:
-                # Bot odpala silnik
-                index = self._move_bota(self.znak_bota)
+            if self.game_type == 2 and self.current_player_mark == self.bot_mark:
+                index = self._bot_move(self.bot_mark)
                 
-                # Wykonanie moveu na planszy
                 self.board.make_move(index, self.current_player_mark)
                 self.history.append(index)
                 self.current_player_mark = "O" if self.current_player_mark == "X" else "X"
-                continue # Bot zagrał, wracamy na początek pętli
+                continue
 
-            klik = self.interface.get_click()
-            if klik is not None:
-                row, column = klik
+            click = self.interface.get_click()
+            if click is not None:
+                row, column = click
                 index = row * self.width + column
 
                 if self.board.grid[index] == ' ':
@@ -397,57 +386,53 @@ class Gra:
                     self.history.append(index)
                     self.current_player_mark = "O" if self.current_player_mark == "X" else "X"
                 else:
-                    print("To pole jest już zajęte. Wybierz inne pole.")
+                    print("This field is already occupied. Please choose another field.")
 
 
 
     def _check_win_streakner(self, result):
         if result == 'draw':
             print('draw!')
-            return # Twarde wyjście, żeby nie drukowało przegranej niżej
+            return
 
-        if self.rodzaj_gry == 1:
+        if self.game_type == 1:
             if result == 'X':
-                print("Wygrał player_mark X!")
+                print("Player X won!")
             else:
-                print("Wygrał player_mark O!")
-        elif self.rodzaj_gry == 2:
-            if result == self.znak_czlowieka:
-                print("Wygrałeś!")
+                print("Player O won!")
+        elif self.game_type == 2:
+            if result == self.human_mark:
+                print("You win!")
             else:
-                print("Przegrałeś!")
+                print("You lose!")
         else:
             if result == 'X':
-                print("Bot X wygrał!")
+                print("Bot X won!")
             else:
-                print("Bot O wygrał!")
+                print("Bot O won!")
 
     
     
-    def _move_bota(self, znak_bota):
+    def _bot_move(self, bot_mark):
         
-        # 1. Ustalenie, jaki poziom trudności dotyczy tego konkretnego bota
-        if self.rodzaj_gry == 2:
-            poziom = self.difficulty_level
-        else: # Tryb 3 (Bot vs Bot)
-            poziom = self.difficulty_level_x if znak_bota == 'X' else self.difficulty_level_o
+        if self.game_type == 2:
+            difficulty_level = self.difficulty_level
+        else:
+            difficulty_level = self.difficulty_level_x if bot_mark == 'X' else self.difficulty_level_o
             
-        #
         ilosc_opcji = len(self.board.get_legal_moves())
         konfiguracja_czasu = {1: (0.2, 0.03), 2: (0.5, 0.05), 3: (2.0, 0.15)}
-        baza, mnoznik = konfiguracja_czasu[poziom]
+        baza, mnoznik = konfiguracja_czasu[difficulty_level]
         time_for_move = baza + (mnoznik * ilosc_opcji)
         
-        # 3. Powołanie "świeżego" bota z precyzyjnymi wytycznymi na tę jedną turę
-        aktywny_bot = BotMonteCarlo(znak_bota, time_for_move)
+        aktywny_bot = BotMonteCarlo(bot_mark, time_for_move)
         
-        # 4. Odpytanie objectu o best move
         return aktywny_bot.find_best_move(self.board)
 
 
 
 if __name__ == '__main__':
-    gra_trwa = True
-    while gra_trwa:
-        new_gra = Gra()
-        gra_trwa = new_gra.start()
+    game_on = True
+    while game_on:
+        new_gra = Game()
+        game_on = new_gra.start()
