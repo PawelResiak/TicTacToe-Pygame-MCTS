@@ -5,7 +5,7 @@ import sys
 
 
 
-class GraphicalInterface:
+class GameView:
     def __init__(self):
         pygame.init()
 
@@ -19,53 +19,27 @@ class GraphicalInterface:
         self.rozmiar_okna = (width * 100, height * 100)
         self.okno = pygame.display.set_mode(self.rozmiar_okna)
 
-
-    def pobierz_kliknięcie(self):
-        for zdarzenie in pygame.event.get():
-            if zdarzenie.type == pygame.QUIT:
+    def get_click(self) -> tuple:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
-            elif zdarzenie.type == pygame.MOUSEBUTTONDOWN:
-                x, y = zdarzenie.pos
-                kolumna = x // 100
-                wiersz = y // 100
-                return (wiersz, kolumna)
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                x, y = event.pos
+                column = x // 100
+                row = y // 100
+                return (row, column)
         return None
 
-
-    def umoveom_okno(self):
-        pygame.display.set_caption("Kółko i Krzyżyk")
+    def refresh_screen(self, board):
         self.okno.fill((255, 255, 255))
-        board = ['X', 'O', ' ', 'O', 'X', ' ', ' ', ' ', 'X']
-        running = True
-        while running:
-            for zdarzenie in pygame.event.get():
-                if zdarzenie.type == pygame.QUIT:
-                    #running = False
-                    pygame.quit()
-                    sys.exit()
-                elif zdarzenie.type == pygame.MOUSEBUTTONDOWN:
-                    x, y = zdarzenie.pos
-                    kolumna = x // 100
-                    wiersz = y // 100
-                    #index = (wiersz-1) * self.width + (kolumna-1)
-
-                    print(f"Kliknięto na pole: ({wiersz}, {kolumna})")
-            self.okno.fill((255, 255, 255))
-            self.rysuj_plansze()
-            self.rysuj_znaki(board)
-            pygame.display.flip()
-            self.clock.tick(10)
-
-    def odswiez_ekran(self, board):
-        self.okno.fill((255, 255, 255))
-        self.rysuj_plansze()
-        self.rysuj_znaki(board)
+        self.draw_board()
+        self.draw_symbols(board)
         pygame.display.flip()
         self.clock.tick(60)
 
 
-    def rysuj_plansze(self):
+    def draw_board(self):
         for i in range(1, self.width):
             x = i * 100
             pygame.draw.line(self.okno, (0, 0, 0), (x, 0), (x, self.rozmiar_okna[1]), 3)
@@ -74,49 +48,46 @@ class GraphicalInterface:
             y = i * 100
             pygame.draw.line(self.okno, (0, 0, 0), (0, y), (self.rozmiar_okna[0], y), 3)
 
-    def rysuj_o(self, wiersz, kolumna):
-        srodek_x = kolumna * 100 + 50
-        srodek_y = wiersz * 100 + 50
-        pygame.draw.circle(self.okno, (0, 0, 255), (srodek_x, srodek_y), 35, 5)
+    def draw_o(self, row, column):
+        middle_x = column * 100 + 50
+        middle_y = row * 100 + 50
+        pygame.draw.circle(self.okno, (0, 0, 255), (middle_x, middle_y), 35, 5)
 
-    def rysuj_x(self, wiersz, kolumna):
-        srodek_x = kolumna * 100 + 50
-        srodek_y = wiersz * 100 + 50
-        pygame.draw.line(self.okno, (255, 0, 0), (srodek_x - 35, srodek_y - 35), (srodek_x + 35, srodek_y + 35), 5)
-        pygame.draw.line(self.okno, (255, 0, 0), (srodek_x + 35, srodek_y - 35), (srodek_x - 35, srodek_y + 35), 5)
+    def draw_x(self, row, column):
+        middle_x = column * 100 + 50
+        middle_y = row * 100 + 50
+        pygame.draw.line(self.okno, (255, 0, 0), (middle_x - 35, middle_y - 35), (middle_x + 35, middle_y + 35), 5)
+        pygame.draw.line(self.okno, (255, 0, 0), (middle_x + 35, middle_y - 35), (middle_x - 35, middle_y + 35), 5)
 
-    def rysuj_znaki(self, board):
+    def draw_symbols(self, board):
         for y in range(self.height):
             for x in range(self.width):
                 znak = board.grid[y * self.width + x]
                 if znak == 'O':
-                    self.rysuj_o(y, x)
+                    self.draw_o(y, x)
                 elif znak == 'X':
-                    self.rysuj_x(y, x)
+                    self.draw_x(y, x)
 
 
 
-class Przycisk:
-    def __init__(self, x, y, width, height, tekst, kolor):
-        self.x = x
-        self.y = y
-        self.width = width
-        self.height = height
-        self.tekst = tekst
-        self.kolor = kolor
 
+
+class Button:
+
+    def __init__(self, x: int, y: int, width: int, height: int, text: str, color: tuple):
+        self.rect = pygame.Rect(x, y, width, height)
+        self.text = text
+        self.color = color
         self.font = pygame.font.Font(None, 36)
 
-        self.prostokąt = pygame.Rect(x, y, width, height)
+    def is_clicked(self, mouse_pos: tuple) -> bool:
+        return self.rect.collidepoint(mouse_pos)
 
-    def czy_kliknięty(self, pozycja_myszy):
-        return self.prostokąt.collidepoint(pozycja_myszy)
-
-    def rysuj(self, okno):
-        pygame.draw.rect(okno, self.kolor, self.prostokąt)
-        tekst_surface = self.font.render(self.tekst, True, (255, 255, 255))
-        tekst_rect = tekst_surface.get_rect(center=self.prostokąt.center)
-        okno.blit(tekst_surface, tekst_rect)
+    def draw(self, window: pygame.Surface) -> None:
+        pygame.draw.rect(window, self.color, self.rect)
+        text_surface = self.font.render(self.text, True, (255, 255, 255))
+        text_rect = text_surface.get_rect(center=self.rect.center)
+        window.blit(text_surface, text_rect)
 
 
 
@@ -152,10 +123,10 @@ class Board:
         
         grid = separator
         for y in range(self.height):
-            wiersz = '|'
+            row = '|'
             for x in range(self.width):
-                wiersz += f' {self.grid[x + (y * self.width)]} |'
-            grid += wiersz + '\n' + separator
+                row += f' {self.grid[x + (y * self.width)]} |'
+            grid += row + '\n' + separator
             
         print(grid, end='')
 
@@ -280,7 +251,7 @@ class BotMonteCarlo:
 
 class Gra:
     def __init__(self):
-        self.interface = GraphicalInterface()
+        self.interface = GameView()
         self.history = []
 
         # 1. Wybór trybu gry
@@ -324,25 +295,25 @@ class Gra:
         
         # Generator: przechodzi przez listę opcji i automatycznie buduje z nich buttons
         for tekst, wartosc in opcje:
-            nowy_przycisk = Przycisk(200, start_y, 400, 60, tekst, (100, 100, 200))
-            buttons.append((nowy_przycisk, wartosc))
+            new_button = Button(200, start_y, 400, 60, tekst, (100, 100, 200))
+            buttons.append((new_button, wartosc))
             start_y += 80 # Każdy kolejny przycisk będzie o 80 pikseli niżej
             
         while True:
-            for zdarzenie in pygame.event.get():
-                if zdarzenie.type == pygame.QUIT:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
                 
                 # Sprawdzanie, czy kliknięto w którykolwiek przycisk
-                if zdarzenie.type == pygame.MOUSEBUTTONDOWN:
-                    for przycisk, wartosc in buttons:
-                        if przycisk.czy_kliknięty(zdarzenie.pos):
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    for button, wartosc in buttons:
+                        if button.is_clicked(event.pos):
                             return wartosc
 
             self.interface.okno.fill((255, 255, 255))
-            for przycisk, _ in buttons:
-                przycisk.rysuj(self.interface.okno)
+            for button, _ in buttons:
+                button.draw(self.interface.okno)
             pygame.display.flip()
             self.interface.clock.tick(60)
     
@@ -361,32 +332,31 @@ class Gra:
         else:
             komunikat = f"Bot {result} wygrał!"
 
-        srodek_x = self.interface.rozmiar_okna[0] // 2
-        srodek_y = self.interface.rozmiar_okna[1] // 2
+        middle_x = self.interface.rozmiar_okna[0] // 2
+        middle_y = self.interface.rozmiar_okna[1] // 2
 
         czcionka = pygame.font.Font(None, 72)
         napis = czcionka.render(komunikat, True, (0, 0, 0), (255, 255, 255))
-        napis_rect = napis.get_rect(center=(srodek_x, srodek_y - 50))
+        napis_rect = napis.get_rect(center=(middle_x, middle_y - 50))
 
-        przycisk_restart = Przycisk(srodek_x - 150, srodek_y + 20, 300, 60, "Zagraj ponownie", (100, 200, 100))
+        button_restart = Button(middle_x - 150, middle_y + 20, 300, 60, "Zagraj ponownie", (100, 200, 100))
 
         while True:
-            for zdarzenie in pygame.event.get():
-                if zdarzenie.type == pygame.QUIT:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
-                if zdarzenie.type == pygame.MOUSEBUTTONDOWN:
-                    if przycisk_restart.czy_kliknięty(zdarzenie.pos):
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    if button_restart.is_clicked(event.pos):
                         return True # player_mark zdecydował się na restart
 
-            # Tło: Rysujemy normalną planszę
             self.interface.okno.fill((255, 255, 255))
-            self.interface.rysuj_plansze()
-            self.interface.rysuj_znaki(self.board)
+            self.interface.draw_board()
+            self.interface.draw_symbols(self.board)
             
             # Wierzch: Od razu nakładamy napis i przycisk
             self.interface.okno.blit(napis, napis_rect)
-            przycisk_restart.rysuj(self.interface.okno)
+            button_restart.draw(self.interface.okno)
             
             pygame.display.flip()
             self.interface.clock.tick(15)
@@ -396,7 +366,7 @@ class Gra:
     def start(self):
         running = True
         while running:
-            self.interface.odswiez_ekran(self.board)
+            self.interface.refresh_screen(self.board)
 
 
             # Sędziowanie
@@ -417,10 +387,10 @@ class Gra:
                 self.current_player_mark = "O" if self.current_player_mark == "X" else "X"
                 continue # Bot zagrał, wracamy na początek pętli
 
-            klik = self.interface.pobierz_kliknięcie()
+            klik = self.interface.get_click()
             if klik is not None:
-                wiersz, kolumna = klik
-                index = wiersz * self.width + kolumna
+                row, column = klik
+                index = row * self.width + column
 
                 if self.board.grid[index] == ' ':
                     self.board.make_move(index, self.current_player_mark)
