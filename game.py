@@ -15,17 +15,20 @@ class Game:
 
         mode = [
             ("player vs player", 1),
-            ("player vs bot", 2)
+            ("player vs bot", 2),
+            ("bot vs bot", 3)
         ]
-        self.game_type = self.choice_menu(mode)
 
-        if self.game_type == 2:
-            mark_option = [("Play as a (O)", "O"), ("Play as a (X)", "X")]
-            self.human_mark = self.choice_menu(mark_option)
-            self.bot_mark = "X" if self.human_mark == "O" else "O"
+        games = [
+            ("Tic Tac Toe / Gomoku", 1), 
+            ("Othello", 2)
+        ]
 
-            difficulty_options = [("Easy", 1), ("Medium", 2), ("Hard", 3)]
-            self.difficulty_level = self.choice_menu(difficulty_options)
+        difficulty_options = [
+            ("Easy", 1), 
+            ("Medium", 2), 
+            ("Hard", 3)
+        ]
 
         board_size = [
             ("Classic 3x3 (win_streak: 3)", (3, 3, 3)),
@@ -33,14 +36,31 @@ class Game:
             ("Huge 10x10 (win_streak: 5)", (10, 10, 5)),
             ("Gomoku 19x19 (win_streak: 5)", (19, 19, 5))
         ]
-        chosen_board = self.choice_menu(board_size)
-        self.width = chosen_board[0]
-        self.height = chosen_board[1]
-        self.win_streak = chosen_board[2]
 
-        self.interface.set_board_size(self.width, self.height)
-        self.board = MNKBoard(self.width, self.height, self.win_streak)
-        self.current_player_mark = 'X'
+        self.game_choice = self.choice_menu(games)
+        self.game_type = self.choice_menu(mode)
+
+        if self.game_choice == 1:
+            if self.game_type == 2:
+                mark_option = [("Play as a (O)", "O"), ("Play as a (X)", "X")]
+                self.human_mark = self.choice_menu(mark_option)
+                self.bot_mark = "X" if self.human_mark == "O" else "O"
+                self.difficulty_level = self.choice_menu(difficulty_options)
+            elif self.game_type == 3:
+                self.difficulty_level_x = self.choice_menu([("Easy", 1), ("Medium", 2), ("Hard", 3)])
+                self.difficulty_level_o = self.choice_menu([("Easy", 1), ("Medium", 2), ("Hard", 3)])
+
+            chosen_board = self.choice_menu(board_size)
+            self.width = chosen_board[0]
+            self.height = chosen_board[1]
+            self.win_streak = chosen_board[2]
+            
+            self.interface.set_board_size(self.width, self.height)
+            self.board = MNKBoard(self.width, self.height, self.win_streak)
+            self.current_player_mark = 'X'
+        else:
+            #similar logic
+            pass
     
     
     
