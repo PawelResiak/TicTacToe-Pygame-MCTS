@@ -2,7 +2,7 @@ import pygame
 import sys
 
 from gui import GameView, Button
-from board import MNKBoard
+from board import MNKBoard, OthelloBoard
 from ai import BotMinimax_3x3, BotMonteCarlo
          
 
@@ -38,17 +38,17 @@ class Game:
         ]
 
         self.game_choice = self.choice_menu(games)
-        self.game_type = self.choice_menu(mode)
+        self.game_mode = self.choice_menu(mode)
 
         if self.game_choice == 1:
-            if self.game_type == 2:
+            if self.game_mode == 2:
                 mark_option = [("Play as a (O)", "O"), ("Play as a (X)", "X")]
                 self.human_mark = self.choice_menu(mark_option)
                 self.bot_mark = "X" if self.human_mark == "O" else "O"
                 self.difficulty_level = self.choice_menu(difficulty_options)
-            elif self.game_type == 3:
-                self.difficulty_level_x = self.choice_menu([("Easy", 1), ("Medium", 2), ("Hard", 3)])
-                self.difficulty_level_o = self.choice_menu([("Easy", 1), ("Medium", 2), ("Hard", 3)])
+            elif self.game_mode == 3:
+                self.difficulty_level_1 = self.choice_menu([("Easy", 1), ("Medium", 2), ("Hard", 3)])
+                self.difficulty_level_2 = self.choice_menu([("Easy", 1), ("Medium", 2), ("Hard", 3)])
 
             chosen_board = self.choice_menu(board_size)
             self.width = chosen_board[0]
@@ -59,8 +59,22 @@ class Game:
             self.board = MNKBoard(self.width, self.height, self.win_streak)
             self.current_player_mark = 'X'
         else:
-            #similar logic
-            pass
+            if self.game_mode == 2:
+                mark_option = [("Play as a white", "W"), ("Play as a black", "B")]
+                self.human_mark = self.choice_menu(mark_option)
+                self.bot_mark = "W" if self.human_mark == "B" else "B"
+                self.difficulty_level = self.choice_menu(difficulty_options)
+            elif self.game_mode == 3:
+                self.difficulty_level_1 = self.choice_menu([("Easy", 1), ("Medium", 2), ("Hard", 3)])
+                self.difficulty_level_2 = self.choice_menu([("Easy", 1), ("Medium", 2), ("Hard", 3)])
+
+            self.interface.set_board_size(8, 8)
+            self.width = 8
+            self.height = 8
+            self.win_streak = 0
+            self.board = OthelloBoard()
+            self.current_player_mark = 'B'
+            
     
     
     
@@ -95,9 +109,9 @@ class Game:
     def end_screen(self, result):
         if result == 'draw':
             announcement = "draw!"
-        elif self.game_type == 1:
+        elif self.game_mode == 1:
             announcement = f"Player {result} won!"
-        elif self.game_type == 2:
+        elif self.game_mode == 2:
             if result == self.human_mark:
                 announcement = "You win!"
             else:
@@ -123,7 +137,7 @@ class Game:
                     if button_restart.is_clicked(event.pos):
                         return True
 
-            self.interface.grid.fill((255, 255, 255))
+            self.interface.grid.fill((120, 30, 0))
             self.interface.draw_board()
             self.interface.draw_symbols(self.board)
             
@@ -143,15 +157,17 @@ class Game:
             result = self.board.check_winner()
 
             if result is not None:
-                play_again = self.end_screen(result)
-                return play_again
+                return self.end_screen(result)
 
-            if self.game_type == 2 and self.current_player_mark == self.bot_mark:
+            if self.game_mode == 2 and self.current_player_mark == self.bot_mark:
                 index = self._bot_move(self.bot_mark)
                 
                 self.board.make_move(index, self.current_player_mark)
                 self.history.append(index)
-                self.current_player_mark = "O" if self.current_player_mark == "X" else "X"
+                if self.game_choice == 1:
+                    self.current_player_mark = "O" if self.current_player_mark == "X" else "X"
+                else:
+                    self.current_player_mark = "W" if self.current_player_mark == "B" else "B"
                 continue
 
             click = self.interface.get_click()
@@ -159,23 +175,29 @@ class Game:
                 row, column = click
                 index = row * self.width + column
 
-                if self.board.grid[index] == ' ':
+                if index in self.board.get_legal_moves(self.current_player_mark):
                     self.board.make_move(index, self.current_player_mark)
                     self.history.append(index)
-                    self.current_player_mark = "O" if self.current_player_mark == "X" else "X"
+                    if self.game_choice == 1:
+                        self.current_player_mark = "O" if self.current_player_mark == "X" else "X"
+                    else:
+                        self.current_player_mark = "W" if self.current_player_mark == "B" else "B"
                 else:
-                    print("This field is already occupied. Please choose another field.")
+                    print("Illegal move. Try again.")
 
     
     
     def _bot_move(self, bot_mark):
         
-        if self.game_type == 2:
+        if self.game_mode == 2:
             difficulty_level = self.difficulty_level
         else:
-            difficulty_level = self.difficulty_level_x if bot_mark == 'X' else self.difficulty_level_o
+            if bot_mark in ['X', 'B']:
+                difficulty_level = self.difficulty_level_1
+            else:
+                difficulty_level = self.difficulty_level_2
             
-        possible_moves = len(self.board.get_legal_moves())
+        possible_moves = len(self.board.get_legal_moves(bot_mark))
         time_configuration = {1: (0.2, 0.03), 2: (0.5, 0.05), 3: (2.0, 0.15)}
         base, multiplier = time_configuration[difficulty_level]
         time_for_move = base + (multiplier * possible_moves)

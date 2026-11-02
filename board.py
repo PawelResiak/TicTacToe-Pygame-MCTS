@@ -1,9 +1,10 @@
 from abc import ABC, abstractmethod
+from collections import Counter
 
 class BaseBoard(ABC):
     
     @abstractmethod
-    def get_legal_moves(self) -> list:
+    def get_legal_moves(self, player_mark) -> list:
         pass
 
     @abstractmethod
@@ -61,7 +62,7 @@ class MNKBoard(BaseBoard):
             
         print(grid, end='')
 
-    def get_legal_moves(self):
+    def get_legal_moves(self, player_mark=None):
         return [x for x in range(self.height*self.width) if self.grid[x] == ' ']
 
     def check_winner(self):
@@ -83,3 +84,89 @@ class MNKBoard(BaseBoard):
         new_board = MNKBoard(self.width, self.height, self.win_streak)
         new_board.grid = self.grid.copy()
         return new_board
+
+
+
+
+
+
+
+class OthelloBoard(BaseBoard):
+    def __init__(self):
+        self.grid = [' '] * 64
+
+        # Standard Othello starting position in the center
+        self.grid[3 * 8 + 3] = 'W'
+        self.grid[3 * 8 + 4] = 'B'
+        self.grid[4 * 8 + 3] = 'B'
+        self.grid[4 * 8 + 4] = 'W'
+
+    def get_legal_moves(self, player_mark):
+        result = []
+        for index in range(64):
+            if self.grid[index] == ' ': # To make it faster
+                if self._get_flipped_discs(index, player_mark):
+                    result.append(index)
+        return result
+
+
+    def make_move(self, index, player_mark):
+        to_flip = self._get_flipped_discs(index, player_mark)
+        for spot in to_flip:
+            self.grid[spot] = player_mark
+        self.grid[index] = player_mark
+
+
+    def check_winner(self):
+        legal_w = self.get_legal_moves('W')
+        legal_b = self.get_legal_moves('B')
+
+        if len(legal_w) == 0 and len(legal_b) == 0:
+            
+            counter = Counter(self.grid)
+            
+            if counter['W'] > counter['B']:
+                return 'W'
+            elif counter['B'] > counter['W']:
+                return 'B'
+            else:
+                return 'draw'
+            
+        return None
+
+            
+    def clone(self):
+        new_board = OthelloBoard()
+        new_board.grid = self.grid.copy()
+        return new_board
+
+
+    def _get_flipped_discs(self, index, player_mark):
+        if self.grid[index] != ' ':
+            return []
+
+        opponent = 'B' if player_mark == 'W' else 'W'
+
+        row = index // 8
+        col = index % 8
+
+        flipped = []
+
+        directions = [
+            (-1, 0), (1, 0), (0, -1), (0, 1),
+            (-1, -1), (-1, 1), (1, -1), (1, 1)
+        ]
+
+        for d_row, d_col in directions:
+            path = []
+            r, c = row + d_row, col + d_col
+
+            while 0 <= r < 8 and 0 <= c < 8 and self.grid[r * 8 + c] == opponent:
+                path.append(r * 8 + c)
+                r += d_row
+                c += d_col
+
+            if path and 0 <= r < 8 and 0 <= c < 8 and self.grid[r * 8 + c] == player_mark:
+                flipped.extend(path)
+
+        return flipped

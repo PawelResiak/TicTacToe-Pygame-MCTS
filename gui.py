@@ -9,6 +9,13 @@ class GameView:
         self.grid = pygame.display.set_mode((800, 600))
         self.clock = pygame.time.Clock()
 
+        self.drawing_styles = {
+            'X': self.draw_x, 
+            "O": self.draw_o, 
+            "B": self.draw_black_disc, 
+            "W": self.draw_white_disc
+            }
+
 
     def set_board_size(self, width, height):
         self.width = width
@@ -29,7 +36,7 @@ class GameView:
         return None
 
     def refresh_screen(self, board):
-        self.grid.fill((255, 255, 255))
+        self.grid.fill((120, 30, 0))
         self.draw_board()
         self.draw_symbols(board)
         pygame.display.flip()
@@ -56,14 +63,28 @@ class GameView:
         pygame.draw.line(self.grid, (255, 0, 0), (middle_x - 35, middle_y - 35), (middle_x + 35, middle_y + 35), 5)
         pygame.draw.line(self.grid, (255, 0, 0), (middle_x + 35, middle_y - 35), (middle_x - 35, middle_y + 35), 5)
 
+    def draw_black_disc(self, row, column):
+        middle_x = column * 100 + 50
+        middle_y = row * 100 + 50
+        pygame.draw.circle(self.grid, (0, 0, 0), (middle_x, middle_y), 35)
+        pygame.draw.circle(self.grid, (30, 30, 30), (middle_x, middle_y), 25)
+        pygame.draw.circle(self.grid, (10, 10, 10), (middle_x, middle_y), 15)
+
+    def draw_white_disc(self, row, column):
+        middle_x = column * 100 + 50
+        middle_y = row * 100 + 50
+        pygame.draw.circle(self.grid, (255, 229, 204), (middle_x, middle_y), 35, 10)
+        pygame.draw.circle(self.grid, (225, 200, 174), (middle_x, middle_y), 25)
+        pygame.draw.circle(self.grid, (235, 210, 184), (middle_x, middle_y), 10)
+
     def draw_symbols(self, board):
         for y in range(self.height):
             for x in range(self.width):
                 mark = board.grid[y * self.width + x]
-                if mark == 'O':
-                    self.draw_o(y, x)
-                elif mark == 'X':
-                    self.draw_x(y, x)
+                drawing_function = self.drawing_styles.get(mark)
+
+                if drawing_function:
+                    drawing_function(y, x)
 
 
 
