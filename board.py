@@ -91,30 +91,39 @@ class MNKBoard(BaseBoard):
 
 
 
-class OthelloBoard(BaseBoard):
+class OthelloBitboard(BaseBoard):
     def __init__(self):
-        self.grid = [' '] * 64
 
-        # Standard Othello starting position in the center
-        self.grid[3 * 8 + 3] = 'W'
-        self.grid[3 * 8 + 4] = 'B'
-        self.grid[4 * 8 + 3] = 'B'
-        self.grid[4 * 8 + 4] = 'W'
+        self.white_pieces = (1<<27) | (1<<36)
+        self.black_pieces = (1<<28) | (1<<35)
+
+    def clone(self):
+        new_board = OthelloBitboard()
+        new_board.white_pieces = self.white_pieces
+        new_board.black_pieces = self.black_pieces
+        return new_board
 
     def get_legal_moves(self, player_mark):
         result = []
+        occupied = self.black_pieces | self.white_pieces
+
         for index in range(64):
-            if self.grid[index] == ' ': # To make it faster
-                if self._get_flipped_discs(index, player_mark):
+            if not (occupied & (1 << index)):
+                if self._get_flipped_discs(index, player_mark) > 0:
                     result.append(index)
         return result
 
 
     def make_move(self, index, player_mark):
-        to_flip = self._get_flipped_discs(index, player_mark)
-        for spot in to_flip:
-            self.grid[spot] = player_mark
-        self.grid[index] = player_mark
+        flipped = self._get_flipped_discs(index, player_mark)
+        move_mask = (1 << index) | flipped
+
+        if player_mark == 'B':
+            self.black_pieces |= move_mask
+            self.white_pieces &= ~flipped
+        else:
+            self.white_pieces |= move_mask
+            self.black_pieces &= ~flipped
 
 
     def check_winner(self):
@@ -122,35 +131,31 @@ class OthelloBoard(BaseBoard):
         legal_b = self.get_legal_moves('B')
 
         if len(legal_w) == 0 and len(legal_b) == 0:
+
+            w_count = self.white_pieces.bit_count()
+            b_count = self.black_pieces.bit_count()
             
-            counter = Counter(self.grid)
-            
-            if counter['W'] > counter['B']:
-                return 'W'
-            elif counter['B'] > counter['W']:
-                return 'B'
-            else:
-                return 'draw'
+            if w_count > b_count: return 'W'
+            elif b_count > w_count: return 'B'
+            else: return 'draw'
             
         return None
 
-            
-    def clone(self):
-        new_board = OthelloBoard()
-        new_board.grid = self.grid.copy()
-        return new_board
 
 
     def _get_flipped_discs(self, index, player_mark):
-        if self.grid[index] != ' ':
-            return []
+        my_pieces = self.black_pieces if player_mark == 'B' else self.white_pieces
+        opp_pieces = self.white_pieces if player_mark == 'B' else self.black_pieces
+        
+        occupied = my_pieces | opp_pieces
+        if occupied & (1 << index):
+            return 0
 
-        opponent = 'B' if player_mark == 'W' else 'W'
 
         row = index // 8
         col = index % 8
 
-        flipped = []
+        flipped = 0
 
         directions = [
             (-1, 0), (1, 0), (0, -1), (0, 1),
@@ -158,15 +163,20 @@ class OthelloBoard(BaseBoard):
         ]
 
         for d_row, d_col in directions:
-            path = []
+            path = 0
             r, c = row + d_row, col + d_col
 
-            while 0 <= r < 8 and 0 <= c < 8 and self.grid[r * 8 + c] == opponent:
-                path.append(r * 8 + c)
-                r += d_row
-                c += d_col
+            while 0 <= r < 8 and 0 <= c < 8:
+                current_bit = 1 << (r * 8 + c)
+                if opp_pieces & current_bit:
+                    path |= current_bit
+                    r += d_row
+                    c += d_col
+                elif (my_pieces & current_bit) and path > 0:
+                    flipped |= path
+                    break
+                else:
+                    break
 
-            if path and 0 <= r < 8 and 0 <= c < 8 and self.grid[r * 8 + c] == player_mark:
-                flipped.extend(path)
 
         return flipped

@@ -1,5 +1,5 @@
 import time
-from board import OthelloBoard, MNKBoard
+from board import OthelloBitboard, MNKBoard
 from ai import BotMonteCarlo
 
 def run_arena(num_games):
@@ -19,7 +19,7 @@ def run_arena(num_games):
             bot1 = BotMonteCarlo('W', 10)
             bot2 = BotMonteCarlo('B', 10)
 
-        board = OthelloBoard()
+        board = OthelloBitboard()
 
         active_bot = bot1 if bot1.bot == 'B' else bot2
         start_time = time.time()
