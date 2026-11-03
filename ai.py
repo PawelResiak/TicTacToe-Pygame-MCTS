@@ -17,19 +17,19 @@ class BotMinimax_3x3:
         elif result is not None and result != self.bot:
             return -1
 
-        movey = board_object.get_legal_moves(current_player_mark)
-        resulti = []
-        for move in movey:
+        move = board_object.get_legal_moves(current_player_mark)
+        results = []
+        for move in move:
             board_object.make_move(move, current_player_mark)
-            kolejny_player_mark = "X" if current_player_mark == "O" else "O"
-            result = self._minmax(board_object, kolejny_player_mark)
-            resulti.append(result)
+            next_player_mark = "X" if current_player_mark == "O" else "O"
+            result = self._minmax(board_object, next_player_mark)
+            results.append(result)
             board_object.make_move(move, " ")
 
         if current_player_mark == self.bot:
-            return max(resulti)
+            return max(results)
         else:
-            return min(resulti)
+            return min(results)
 
 
 
@@ -52,9 +52,9 @@ class BotMinimax_3x3:
 
 
 class BotMonteCarlo:
-    def __init__(self, bot_mark, time_for_move):
+    def __init__(self, bot_mark, simulations):
         self.bot = bot_mark
-        self.time_for_move = time_for_move
+        self.simulations = simulations
         if bot_mark == 'O':
             self.opponent_mark = 'X'
         elif bot_mark == 'X':
@@ -90,11 +90,11 @@ class BotMonteCarlo:
         best_move = None
         best_result = -999999
         get_legal_moves = board_object.get_legal_moves(self.bot)
-        time_for_move = self.time_for_move / len(get_legal_moves)
+
         for move in get_legal_moves:
             sum_of_points = 0
-            start_time = time.time()
-            while time.time() - start_time < time_for_move:
+
+            for _ in range(self.simulations):
                 board_copy = board_object.clone()
                 board_copy.make_move(move, self.bot)
                 sum_of_points += self._simulate_game(board_copy, self.opponent_mark)

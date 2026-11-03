@@ -198,11 +198,9 @@ class Game:
                 difficulty_level = self.difficulty_level_2
             
         possible_moves = len(self.board.get_legal_moves(bot_mark))
-        time_configuration = {1: (0.2, 0.03), 2: (0.5, 0.05), 3: (2.0, 0.15)}
-        base, multiplier = time_configuration[difficulty_level]
-        time_for_move = base + (multiplier * possible_moves)
+        simulations_configuration = {1: 20, 2: 70, 3: 150}
 
-        active_bot = BotMonteCarlo(bot_mark, time_for_move)
+        active_bot = BotMonteCarlo(bot_mark, simulations_configuration[difficulty_level])
 
         return active_bot.find_best_move(self.board)
 
