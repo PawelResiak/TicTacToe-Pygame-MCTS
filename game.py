@@ -1,8 +1,8 @@
 import pygame
 import sys
-
+from time import sleep
 from gui import GameView, Button
-from board import MNKBoard, OthelloBoard
+from board import MNKBitboard, OthelloBitboard
 from ai import BotMinimax_3x3, BotMonteCarlo
          
 
@@ -56,7 +56,7 @@ class Game:
             self.win_streak = chosen_board[2]
             
             self.interface.set_board_size(self.width, self.height)
-            self.board = MNKBoard(self.width, self.height, self.win_streak)
+            self.board = MNKBitboard(self.width, self.height, self.win_streak)
             self.current_player_mark = 'X'
         else:
             if self.game_mode == 2:
@@ -72,7 +72,7 @@ class Game:
             self.width = 8
             self.height = 8
             self.win_streak = 0
-            self.board = OthelloBoard()
+            self.board = OthelloBitboard()
             self.current_player_mark = 'B'
             
     
@@ -159,6 +159,13 @@ class Game:
             if result is not None:
                 return self.end_screen(result)
 
+            if not self.board.get_legal_moves(self.current_player_mark):
+                if self.game_choice == 1:
+                    self.current_player_mark = "O" if self.current_player_mark == "X" else "X"
+                else:
+                    self.current_player_mark = "W" if self.current_player_mark == "B" else "B"
+                continue
+
             if self.game_mode == 2 and self.current_player_mark == self.bot_mark:
                 index = self._bot_move(self.bot_mark)
                 
@@ -169,6 +176,18 @@ class Game:
                 else:
                     self.current_player_mark = "W" if self.current_player_mark == "B" else "B"
                 continue
+
+            if self.game_mode == 3:
+                index = self._bot_move(self.current_player_mark)
+                
+                self.board.make_move(index, self.current_player_mark)
+                self.history.append(index)
+                if self.game_choice == 1:
+                    self.current_player_mark = "O" if self.current_player_mark == "X" else "X"
+                else:
+                    self.current_player_mark = "W" if self.current_player_mark == "B" else "B"
+                continue
+
 
             click = self.interface.get_click()
             if click is not None:
@@ -198,7 +217,7 @@ class Game:
                 difficulty_level = self.difficulty_level_2
             
         possible_moves = len(self.board.get_legal_moves(bot_mark))
-        simulations_configuration = {1: 20, 2: 70, 3: 150}
+        simulations_configuration = {1: 20, 2: 250, 3: 300}
 
         active_bot = BotMonteCarlo(bot_mark, simulations_configuration[difficulty_level])
 

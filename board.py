@@ -23,66 +23,86 @@ class BaseBoard(ABC):
 
 
 
-class MNKBoard(BaseBoard):
+class MNKBitboard(BaseBoard):
     def __init__(self, width, height, win_streak):
         self.width = width
         self.height = height
         self.win_streak = win_streak
-        self.grid = [' ']* (self.height * self.width)
-        self.winning_lines = self.winning_lines()
+        self.size = width * height
+        self.x_pieces = 0
+        self.o_pieces = 0
+        self.last_move = None
+        self.last_mark = None
 
-    def winning_lines(self):
-        width = self.width
-        height = self.height
-        win_streak = self.win_streak
+        lines = self._generate_winning_lines()
+        self.masks_by_cell = {i: [] for i in range(self.size)}
+        for line in lines:
+            mask = 0
+            for idx in line:
+                mask |= (1 << idx)
+            for idx in line:
+                self.masks_by_cell[idx].append(mask)
 
-        horizontal = [tuple(width * y + x + k for k in range(win_streak)) 
-                for y in range(height) for x in range(width - win_streak + 1)]
+    def _generate_winning_lines(self):
+        w, h, s = self.width, self.height, self.win_streak
+        lines = []
 
-        vertical = [tuple(width * (y + k) + x for k in range(win_streak)) 
-                for y in range(height - win_streak + 1) for x in range(width)]
+        for y in range(h):
+            for x in range(w - s + 1):
+                lines.append([w * y + x + k for k in range(s)])
+        for y in range(h - s + 1):
+            for x in range(w):
+                lines.append([w * (y + k) + x for k in range(s)])
+        for y in range(h - s + 1):
+            for x in range(w - s + 1):
+                lines.append([w * (y + k) + (x + k) for k in range(s)])
+        for y in range(s - 1, h):
+            for x in range(w - s + 1):
+                lines.append([w * (y - k) + (x + k) for k in range(s)])
+        return lines
 
-        diag_1 = [tuple(width * (y + k) + (x + k) for k in range(win_streak)) 
-                    for y in range(height - win_streak + 1) for x in range(width - win_streak + 1)]
-
-        diag_2 = [tuple(width * (y - k) + (x + k) for k in range(win_streak)) 
-                    for y in range(win_streak - 1, height) for x in range(width - win_streak + 1)]
-
-        return horizontal + vertical + diag_1 + diag_2
-
-    def display_console(self):
-        separator = '-' * (4 * self.width +1) + '\n'
-        
-        grid = separator
-        for y in range(self.height):
-            row = '|'
-            for x in range(self.width):
-                row += f' {self.grid[x + (y * self.width)]} |'
-            grid += row + '\n' + separator
-            
-        print(grid, end='')
+    @property
+    def grid(self):
+        visual_grid = [' '] * self.size
+        for i in range(self.size):
+            if self.x_pieces & (1 << i):
+                visual_grid[i] = 'X'
+            elif self.o_pieces & (1 << i):
+                visual_grid[i] = 'O'
+        return visual_grid
 
     def get_legal_moves(self, player_mark=None):
-        return [x for x in range(self.height*self.width) if self.grid[x] == ' ']
+        occupied = self.x_pieces | self.o_pieces
+        return [i for i in range(self.size) if not (occupied & (1 << i))]
+
+    def make_move(self, index, player_mark):
+        if player_mark == 'X':
+            self.x_pieces |= (1 << index)
+        else:
+            self.o_pieces |= (1 << index)
+            
+        self.last_move = index
+        self.last_mark = player_mark
 
     def check_winner(self):
-        for line in self.winning_lines:
-            first_mark = self.grid[line[0]]
-            if first_mark != ' ':
-                if all(self.grid[index] == first_mark for index in line):
-                    return first_mark
-                
-        if len(self.get_legal_moves()) == 0:
+        if self.last_move is not None:
+            pieces = self.x_pieces if self.last_mark == 'X' else self.o_pieces
+            for mask in self.masks_by_cell[self.last_move]:
+                if (pieces & mask) == mask:
+                    return self.last_mark
+        
+        if (self.x_pieces | self.o_pieces) == (1 << self.size) - 1:
             return 'draw'
             
         return None
 
-    def make_move(self, index, player_mark):
-        self.grid[index] = player_mark
-
     def clone(self):
-        new_board = MNKBoard(self.width, self.height, self.win_streak)
-        new_board.grid = self.grid.copy()
+        new_board = MNKBitboard(self.width, self.height, self.win_streak)
+        new_board.x_pieces = self.x_pieces
+        new_board.o_pieces = self.o_pieces
+        new_board.last_move = self.last_move
+        new_board.last_mark = self.last_mark
+        new_board.masks_by_cell = self.masks_by_cell 
         return new_board
 
 
@@ -93,9 +113,18 @@ class MNKBoard(BaseBoard):
 
 class OthelloBitboard(BaseBoard):
     def __init__(self):
-
         self.white_pieces = (1<<27) | (1<<36)
         self.black_pieces = (1<<28) | (1<<35)
+
+    @property
+    def grid(self):
+        visual_grid = [' '] * 64
+        for i in range(64):
+            if self.black_pieces & (1 << i):
+                visual_grid[i] = 'B'
+            elif self.white_pieces & (1 << i):
+                visual_grid[i] = 'W'
+        return visual_grid
 
     def clone(self):
         new_board = OthelloBitboard()
