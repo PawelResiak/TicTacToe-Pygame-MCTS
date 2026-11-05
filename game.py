@@ -1,225 +1,245 @@
 import pygame
-import sys
-from time import sleep
-from gui import GameView, Button
-from board import MNKBitboard, OthelloBitboard
+
+from gui import GameView
+from board import MNKBitboard, OthelloBitboard #, Connect4Bitboard
 from ai import BotMinimax_3x3, BotMonteCarlo
          
 
-
-
 class Game:
     def __init__(self):
+        pygame.init()
         self.interface = GameView()
-        self.history = []
 
-        mode = [
-            ("player vs player", 1),
-            ("player vs bot", 2),
-            ("bot vs bot", 3)
-        ]
+        # --- STATE MACHINE --- 
+        self.state = 'MAIN_MENU'
 
-        games = [
-            ("Tic Tac Toe / Gomoku", 1), 
-            ("Othello", 2)
-        ]
+        # --- MAIN MENU - CHOOSE GAME ---
+        self.selected_game = None # Othello, XO, Gomoku, Connect4
 
-        difficulty_options = [
-            ("Easy", 1), 
-            ("Medium", 2), 
-            ("Hard", 3)
-        ]
+        # --- GAME SETUP ---
+        self.game_mode = None
+        self.player_1_type = 'HUMAN'
+        self.player_2_type = 'BOT'
+        self.bot_mark = None
+        self.difficulty_level = None
+        self.time_setting = None
 
-        board_size = [
-            ("Classic 3x3 (win_streak: 3)", (3, 3, 3)),
-            ("Expanded 5x5 (win_streak: 4)", (5, 5, 4)),
-            ("Huge 10x10 (win_streak: 5)", (10, 10, 5)),
-            ("Gomoku 19x19 (win_streak: 5)", (19, 19, 5))
-        ]
+        # --- VISUALS ---
+        self.board_color = 'CLASSIC'
+        self.show_possible_moves = True
 
-        self.game_choice = self.choice_menu(games)
-        self.game_mode = self.choice_menu(mode)
+        # --- GAME ENGINE ---
+        self.board = None
+        self.current_player_mark = 1
+        self.move_history = []
+        self.simulations_config = {1: 10, 2:50, 3:150}
 
-        if self.game_choice == 1:
-            if self.game_mode == 2:
-                mark_option = [("Play as a (O)", "O"), ("Play as a (X)", "X")]
-                self.human_mark = self.choice_menu(mark_option)
-                self.bot_mark = "X" if self.human_mark == "O" else "O"
-                self.difficulty_level = self.choice_menu(difficulty_options)
-            elif self.game_mode == 3:
-                self.difficulty_level_1 = self.choice_menu([("Easy", 1), ("Medium", 2), ("Hard", 3)])
-                self.difficulty_level_2 = self.choice_menu([("Easy", 1), ("Medium", 2), ("Hard", 3)])
-
-            chosen_board = self.choice_menu(board_size)
-            self.width = chosen_board[0]
-            self.height = chosen_board[1]
-            self.win_streak = chosen_board[2]
-            
-            self.interface.set_board_size(self.width, self.height)
-            self.board = MNKBitboard(self.width, self.height, self.win_streak)
-            self.current_player_mark = 'X'
-        else:
-            if self.game_mode == 2:
-                mark_option = [("Play as a white", "W"), ("Play as a black", "B")]
-                self.human_mark = self.choice_menu(mark_option)
-                self.bot_mark = "W" if self.human_mark == "B" else "B"
-                self.difficulty_level = self.choice_menu(difficulty_options)
-            elif self.game_mode == 3:
-                self.difficulty_level_1 = self.choice_menu([("Easy", 1), ("Medium", 2), ("Hard", 3)])
-                self.difficulty_level_2 = self.choice_menu([("Easy", 1), ("Medium", 2), ("Hard", 3)])
-
-            self.interface.set_board_size(8, 8)
-            self.width = 8
-            self.height = 8
-            self.win_streak = 0
-            self.board = OthelloBitboard()
-            self.current_player_mark = 'B'
-            
-    
-    
-    
-    def choice_menu(self, opcje):
-        buttons = []
-        start_y = 100
-
-        for tekst, value in opcje:
-            new_button = Button(200, start_y, 400, 60, tekst, (100, 100, 200))
-            buttons.append((new_button, value))
-            start_y += 80
-            
+    # --- GAME LOOP ---
+    def run(self):
         while True:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    sys.exit()
-                
-                if event.type == pygame.MOUSEBUTTONDOWN:
-                    for button, value in buttons:
-                        if button.is_clicked(event.pos):
-                            return value
+            if self.state == 'MAIN_MENU':
+                self.handle_main_menu()
+            elif self.state == 'SETUP_MENU':
+                self.handle_setup_menu()
+            elif self.state == 'PLAYING':
+                self.handle_playing()
+            elif self.state == 'END_SCREEN':
+                self.handle_end_screen()
+            elif self.state == 'QUIT':
+                break
 
-            self.interface.grid.fill((255, 255, 255))
-            for button, _ in buttons:
-                button.draw(self.interface.grid)
-            pygame.display.flip()
-            self.interface.clock.tick(60)
-    
-    
-    
-    def end_screen(self, result):
-        if result == 'draw':
-            announcement = "draw!"
-        elif self.game_mode == 1:
-            announcement = f"Player {result} won!"
-        elif self.game_mode == 2:
-            if result == self.human_mark:
-                announcement = "You win!"
+        pygame.quit()
+
+
+    def handle_main_menu(self):
+        choice = self.interface.show_main_menu()
+        if choice == 'QUIT':
+            self.state = 'QUIT'
+        else:
+            self.selected_game = choice
+            self.state = 'SETUP_MENU'
+
+    def handle_setup_menu(self):
+        settings = self.interface.show_setup_menu(self.selected_game)
+
+        if settings == 'QUIT':
+            self.state = 'QUIT'
+        elif settings == 'BACK':
+            self.state = 'MAIN_MENU'
+        else:
+            self.game_mode, bot_color, diff_pack, self.time_setting = settings
+
+            if bot_color in ['X', 'B', 'RED']:
+                self.bot_mark = 1
             else:
-                announcement = "You lose!"
-        else:
-            announcement = f"Bot {result} won!"
+                self.bot_mark = -1
 
-        middle_x = self.interface.grid_size[0] // 2
-        middle_y = self.interface.grid_size[1] // 2
+            # Transformacja: diff_pack staje się słownikiem {numer_gracza: poziom}
+            if self.game_mode == 'PvP':
+                self.player_1_type = 'HUMAN'
+                self.player_2_type = 'HUMAN'
+                self.difficulty_level = {}
+            elif self.game_mode == 'PvE':
+                self.player_1_type = 'BOT' if self.bot_mark == 1 else 'HUMAN'
+                self.player_2_type = 'HUMAN' if self.bot_mark == 1 else 'BOT'
+                self.difficulty_level = {self.bot_mark: diff_pack}
+            elif self.game_mode == 'CvC':
+                self.player_1_type = 'BOT'
+                self.player_2_type = 'BOT'
+                self.difficulty_level = diff_pack # diff_pack z GUI to już {1: trudnosc, -1: trudnosc}
 
-        font = pygame.font.Font(None, 72)
-        subtitle = font.render(announcement, True, (0, 0, 0), (255, 255, 255))
-        subtitle_rect = subtitle.get_rect(center=(middle_x, middle_y - 50))
+            if self.selected_game == 'TicTacToe':
+                self.board = MNKBitboard(3, 3, 3)
+            elif self.selected_game == 'Gomoku19':
+                self.board = MNKBitboard(19, 19, 5)
+            elif self.selected_game == 'Gomoku15':
+                self.board = MNKBitboard(15, 15, 5)
+            elif self.selected_game == 'TicTacToe5':
+                self.board = MNKBitboard(5, 5, 4)
+            elif self.selected_game == 'Othello':
+                self.board = OthelloBitboard()
 
-        button_restart = Button(middle_x - 150, middle_y + 20, 300, 60, "Play again", (100, 200, 100))
+            self.current_player_mark = 1
+            self.move_history = []
+            self.state = 'PLAYING'
 
-        while True:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    sys.exit()
-                if event.type == pygame.MOUSEBUTTONDOWN:
-                    if button_restart.is_clicked(event.pos):
-                        return True
+    def handle_playing(self):
+        # 1. Rysujemy najświeższą planszę
+        score = None
+        if self.selected_game == 'Othello':
+            w_count = self.board.white_pieces.bit_count()
+            b_count = self.board.black_pieces.bit_count()
+            score = (b_count, w_count)
 
-            self.interface.grid.fill((120, 30, 0))
-            self.interface.draw_board()
-            self.interface.draw_symbols(self.board)
-            
-            self.interface.grid.blit(subtitle, subtitle_rect)
-            button_restart.draw(self.interface.grid)
-            
-            pygame.display.flip()
-            self.interface.clock.tick(15)
+        self.interface.refresh_screen(
+            self.board,
+            self.board_color,
+            self.show_possible_moves,
+            self.current_player_mark,
+            len(self.move_history) > 0,
+            score,
+            self.player_1_type,
+            self.player_2_type
+        )
 
-
-    
-    def start(self):
-        running = True
-        while running:
-            self.interface.refresh_screen(self.board)
-
-            result = self.board.check_winner()
-
-            if result is not None:
-                return self.end_screen(result)
-
-            if not self.board.get_legal_moves(self.current_player_mark):
-                if self.game_choice == 1:
-                    self.current_player_mark = "O" if self.current_player_mark == "X" else "X"
-                else:
-                    self.current_player_mark = "W" if self.current_player_mark == "B" else "B"
-                continue
-
-            if self.game_mode == 2 and self.current_player_mark == self.bot_mark:
-                index = self._bot_move(self.bot_mark)
-                
-                self.board.make_move(index, self.current_player_mark)
-                self.history.append(index)
-                if self.game_choice == 1:
-                    self.current_player_mark = "O" if self.current_player_mark == "X" else "X"
-                else:
-                    self.current_player_mark = "W" if self.current_player_mark == "B" else "B"
-                continue
-
-            if self.game_mode == 3:
-                index = self._bot_move(self.current_player_mark)
-                
-                self.board.make_move(index, self.current_player_mark)
-                self.history.append(index)
-                if self.game_choice == 1:
-                    self.current_player_mark = "O" if self.current_player_mark == "X" else "X"
-                else:
-                    self.current_player_mark = "W" if self.current_player_mark == "B" else "B"
-                continue
-
-
-            click = self.interface.get_click()
-            if click is not None:
-                row, column = click
-                index = row * self.width + column
-
-                if index in self.board.get_legal_moves(self.current_player_mark):
-                    self.board.make_move(index, self.current_player_mark)
-                    self.history.append(index)
-                    if self.game_choice == 1:
-                        self.current_player_mark = "O" if self.current_player_mark == "X" else "X"
+        # 2. Nasłuchiwanie "globalnych" zdarzeń systemowych (Wyjście z gry)
+        event_data = self.interface.get_playing_events(self.board, self.current_player_mark)
+        if event_data:
+            if event_data == "QUIT":
+                self.state = "QUIT"
+                return
+            elif event_data == "MAIN_MENU":
+                self.state = "MAIN_MENU"
+                return
+            elif event_data == "UNDO":
+                if len(self.move_history) > 0:
+                    if self.game_mode == "PvE":
+                        if len(self.move_history) >= 2:
+                            self.move_history.pop()  
+                            self.board = self.move_history.pop()  
                     else:
-                        self.current_player_mark = "W" if self.current_player_mark == "B" else "B"
-                else:
-                    print("Illegal move. Try again.")
+                        self.board = self.move_history.pop()
+                        self.current_player_mark *= -1
+                return
+            elif event_data == "TOGGLE_HINT":
+                self.show_possible_moves = not self.show_possible_moves
+                return
+            elif event_data == "CHANGE_COLOR":
+                self.board_color = "MODERN" if self.board_color == "CLASSIC" else "CLASSIC"
+                return
+            elif isinstance(event_data, int):
+                # To był prawidłowy ruch gracza zapisany jako liczba (indeks)
+                # Wykonujemy go tylko, jeśli jest teraz tura człowieka
+                current_type = self.player_1_type if self.current_player_mark == 1 else self.player_2_type
+                if current_type == "HUMAN":
+                    self.move_history.append(self.board.clone())
+                    self.board.make_move(event_data, self.current_player_mark)
+                    self.current_player_mark *= -1
+                return # Zakończ klatkę i odśwież
 
-    
-    
-    def _bot_move(self, bot_mark):
-        
-        if self.game_mode == 2:
-            difficulty_level = self.difficulty_level
+        # 3. Sprawdzamy wygraną po ewentualnym ruchu
+        result = self.board.check_winner()
+        if result is not None:
+            self.winner = result
+            self.state = 'END_SCREEN'
+            return
+
+        # 4. Sprawdzanie zasady pasowania (tylko, jeśli nikt nie kliknął w HUD)
+        if not self.board.get_legal_moves(self.current_player_mark):
+            self.current_player_mark *= -1
+            return
+
+        # 5. Jeśli to tura bota, uruchamiamy jego mózg
+        current_type = self.player_1_type if self.current_player_mark == 1 else self.player_2_type
+        if current_type == "BOT":
+            self._bot_move()
+
+
+    # METODA _player_move JEST TERAZ ZBĘDNA - USUŃ JĄ CAŁKOWITĄ
+    # def _player_move(self):
+    #    ... usuń wszystko wewnątrz ...
+
+    def handle_end_screen(self):
+        # Tutaj też dopisujemy przekazywanie nazw graczy do ekranu końcowego
+        action = self.interface.show_end_screen(
+            self.winner, 
+            self.board, 
+            self.player_1_type, 
+            self.player_2_type
+        )
+
+        if action == 'QUIT':
+            self.state = 'QUIT'
+        elif action == 'RESTART':
+            self.state = 'SETUP_MENU'
+        elif action == 'MAIN_MENU':
+            self.state = 'MAIN_MENU'
+
+    def _bot_move(self):
+        # Opóźnienie czasowe TYLKO dla szybkich gier!
+        if self.game_mode == "CvC" and self.selected_game in ["TicTacToe", "TicTacToe5"]:
+            pygame.time.wait(500)
+            pygame.event.pump()
+
+        self.move_history.append(self.board.clone())
+
+        if isinstance(self.board, MNKBitboard) and self.board.width == 3:
+            active_bot = BotMinimax_3x3(self.current_player_mark)
         else:
-            if bot_mark in ['X', 'B']:
-                difficulty_level = self.difficulty_level_1
-            else:
-                difficulty_level = self.difficulty_level_2
-            
-        possible_moves = len(self.board.get_legal_moves(bot_mark))
-        simulations_configuration = {1: 20, 2: 250, 3: 300}
+            bot_diff = self.difficulty_level.get(self.current_player_mark, 2)
+            sims = self.simulations_config.get(bot_diff, 50)
+            active_bot = BotMonteCarlo(self.current_player_mark, sims)
 
-        active_bot = BotMonteCarlo(bot_mark, simulations_configuration[difficulty_level])
+        index = active_bot.find_best_move(self.board)
+        
+        if index is not None:
+            self.board.make_move(index, self.current_player_mark)
+            self.current_player_mark *= -1
 
-        return active_bot.find_best_move(self.board)
+    def _player_move(self):
+        event_data = self.interface.get_playing_events(self.board, self.current_player_mark)
+        
+        if event_data == "QUIT":
+            self.state = "QUIT"
+        elif event_data == "UNDO":
+            if len(self.move_history) > 0:
+                if self.game_mode == "PvE":
+                    if len(self.move_history) >= 2:
+                        self.move_history.pop()  # Usuwa ruch bota
+                        self.board = self.move_history.pop()  # Usuwa ruch człowieka
+                else:
+                    self.board = self.move_history.pop()
+                    self.current_player_mark *= -1
+        elif event_data == "TOGGLE_HINT":
+            self.show_possible_moves = not self.show_possible_moves
+        elif event_data == "CHANGE_COLOR":
+            self.board_color = "MODERN" if self.board_color == "CLASSIC" else "CLASSIC"
+        elif isinstance(event_data, int):  
+            self.move_history.append(self.board.clone())
+            self.board.make_move(event_data, self.current_player_mark)
+            self.current_player_mark *= -1
 
+
+if __name__ == "__main__":
+    game = Game()
+    game.run()

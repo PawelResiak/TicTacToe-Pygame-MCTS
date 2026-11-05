@@ -76,7 +76,7 @@ class MNKBitboard(BaseBoard):
         return [i for i in range(self.size) if not (occupied & (1 << i))]
 
     def make_move(self, index, player_mark):
-        if player_mark == 'X':
+        if player_mark == 1:
             self.x_pieces |= (1 << index)
         else:
             self.o_pieces |= (1 << index)
@@ -86,7 +86,7 @@ class MNKBitboard(BaseBoard):
 
     def check_winner(self):
         if self.last_move is not None:
-            pieces = self.x_pieces if self.last_mark == 'X' else self.o_pieces
+            pieces = self.x_pieces if self.last_mark == 1 else self.o_pieces
             for mask in self.masks_by_cell[self.last_move]:
                 if (pieces & mask) == mask:
                     return self.last_mark
@@ -147,7 +147,7 @@ class OthelloBitboard(BaseBoard):
         flipped = self._get_flipped_discs(index, player_mark)
         move_mask = (1 << index) | flipped
 
-        if player_mark == 'B':
+        if player_mark == 1:
             self.black_pieces |= move_mask
             self.white_pieces &= ~flipped
         else:
@@ -156,16 +156,16 @@ class OthelloBitboard(BaseBoard):
 
 
     def check_winner(self):
-        legal_w = self.get_legal_moves('W')
-        legal_b = self.get_legal_moves('B')
+        legal_w = self.get_legal_moves(1)
+        legal_b = self.get_legal_moves(-1)
 
         if len(legal_w) == 0 and len(legal_b) == 0:
 
             w_count = self.white_pieces.bit_count()
             b_count = self.black_pieces.bit_count()
             
-            if w_count > b_count: return 'W'
-            elif b_count > w_count: return 'B'
+            if w_count > b_count: return -1
+            elif b_count > w_count: return 1
             else: return 'draw'
             
         return None
@@ -173,8 +173,8 @@ class OthelloBitboard(BaseBoard):
 
 
     def _get_flipped_discs(self, index, player_mark):
-        my_pieces = self.black_pieces if player_mark == 'B' else self.white_pieces
-        opp_pieces = self.white_pieces if player_mark == 'B' else self.black_pieces
+        my_pieces = self.black_pieces if player_mark == 1 else self.white_pieces
+        opp_pieces = self.white_pieces if player_mark == 1 else self.black_pieces
         
         occupied = my_pieces | opp_pieces
         if occupied & (1 << index):
