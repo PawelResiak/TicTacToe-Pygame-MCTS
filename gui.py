@@ -1,6 +1,6 @@
 import pygame
 
-BG_COLOR = (30, 30, 30)
+BG_COLOR = (30, 30, 32)
 TEXT_COLOR = (240, 240, 240)
 BUTTON_COLOR = (70, 130, 180)
 BUTTON_HOVER = (100, 150, 200)
@@ -42,6 +42,12 @@ class GameView:
         self.font_large = pygame.font.SysFont(None, 64)
         self.font_medium = pygame.font.SysFont(None, 40)
         self.font_small = pygame.font.SysFont(None, 28)
+        
+        # Pamięć podręczna dla trójwymiarowych pionków
+        self.black_piece = None
+        self.white_piece = None
+        self._current_radius = 0
+
 
     def show_main_menu(self):
         buttons = [
@@ -200,8 +206,8 @@ class GameView:
 
     def _draw_board_grid(self, board, board_color_theme):
         themes = {
-            "CLASSIC": ((34, 139, 34), (0, 0, 0)),
-            "MODERN": ((200, 200, 200), (50, 50, 50))
+            "CLASSIC": ((34, 125, 34), (0, 0, 0)),
+            "MODERN": ((74, 25, 26), (10, 0, 10))
         }
         bg_col, line_col = themes.get(board_color_theme, themes["CLASSIC"])
 
@@ -222,6 +228,21 @@ class GameView:
     def _draw_pieces(self, board):
         cols = getattr(board, 'width', 8)
         grid = board.grid 
+        
+        radius = self.cell_w // 2 - 5
+
+        if self._current_radius != radius:
+            self._current_radius = radius
+            self.black_piece = self._create_piece_surface(
+                radius, 
+                base_color=(0, 0, 0), 
+                highlight_color=(100, 100, 120)
+            )
+            self.white_piece = self._create_piece_surface(
+                radius, 
+                base_color=(80, 80, 80), 
+                highlight_color=(250, 250, 250)
+            )
 
         for index, mark in enumerate(grid):
             if mark == ' ':
@@ -232,15 +253,41 @@ class GameView:
             center = (x + self.cell_w // 2, y + self.cell_h // 2)
 
             if mark == 'B':
-                pygame.draw.circle(self.screen, (0, 0, 0), center, self.cell_w // 2 - 5)
+                rect = self.black_piece.get_rect(center=center)
+                self.screen.blit(self.black_piece, rect)
             elif mark == 'W':
-                pygame.draw.circle(self.screen, (255, 255, 255), center, self.cell_w // 2 - 5)
+                rect = self.white_piece.get_rect(center=center)
+                self.screen.blit(self.white_piece, rect)
             elif mark == 'X':
                 offset = 15
                 pygame.draw.line(self.screen, (200, 50, 50), (x + offset, y + offset), (x + self.cell_w - offset, y + self.cell_h - offset), 5)
                 pygame.draw.line(self.screen, (200, 50, 50), (x + offset, y + self.cell_h - offset), (x + self.cell_w - offset, y + offset), 5)
             elif mark == 'O':
                 pygame.draw.circle(self.screen, (50, 50, 200), center, self.cell_w // 2 - 10, 5)
+
+
+    def _create_piece_surface(self, radius, base_color, highlight_color):
+        size = radius * 2 + 8
+        surface = pygame.Surface((size, size), pygame.SRCALPHA)
+        
+        center_x = size // 2 - 2
+        center_y = size // 2 - 2
+
+        # 1. Shade
+        pygame.draw.circle(surface, (0, 0, 0, 90), (center_x + 3, center_y + 4), radius)
+
+        # 2. 3D effect 
+        for i in range(radius):
+            factor = i / radius 
+            r = base_color[0] + (highlight_color[0] - base_color[0]) * factor
+            g = base_color[1] + (highlight_color[1] - base_color[1]) * factor
+            b = base_color[2] + (highlight_color[2] - base_color[2]) * factor
+            
+            offset = int(factor * (radius * 0.45))
+            pygame.draw.circle(surface, (int(r), int(g), int(b)), 
+                             (center_x - offset, center_y - offset), radius - i)
+                             
+        return surface
 
     def _draw_hud(self, score, current_player_mark, board, p1_type, p2_type):
         hud_rect = pygame.Rect(700, 0, 300, 700)
@@ -275,14 +322,14 @@ class GameView:
         # Sprawdzamy czy to Othello (tylko Othello ma białe pionki w logice)
         is_othello = hasattr(board, 'white_pieces')
         
-        # Rysuj zielone kropki tylko, gdy włączone i gra to Othello
+        # Rysuj kropki tylko, gdy włączone i gra to Othello
         if show_possible_moves and is_othello:
             legal = board.get_legal_moves(current_player_mark)
             cols = getattr(board, 'width', 8)
             for move in legal:
                 cx = (move % cols) * self.cell_w + self.cell_w // 2
                 cy = (move // cols) * self.cell_h + self.cell_h // 2
-                pygame.draw.circle(self.screen, (0, 255, 0), (cx, cy), 8)
+                pygame.draw.circle(self.screen, (100, 100, 100), (cx, cy), 8)
 
         self._draw_pieces(board)
         self._draw_hud(score, current_player_mark, board, p1_type, p2_type)
