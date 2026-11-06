@@ -1,36 +1,6 @@
 import pygame
-
-BG_COLOR = (30, 30, 32)
-TEXT_COLOR = (240, 240, 240)
-BUTTON_COLOR = (70, 130, 180)
-BUTTON_HOVER = (100, 150, 200)
-BUTTON_SELECTED = (40, 200, 100)
-
-class Button:
-    def __init__(self, x, y, width, height, text, value=None):
-        self.rect = pygame.Rect(x, y, width, height)
-        self.text = text
-        self.value = value if value else text
-        self.is_selected = False
-
-    def draw(self, surface, font, mouse_pos):
-        if self.is_selected:
-            color = BUTTON_SELECTED
-        elif self.rect.collidepoint(mouse_pos):
-            color = BUTTON_HOVER
-        else:
-            color = BUTTON_COLOR
-
-        pygame.draw.rect(surface, color, self.rect, border_radius=8)
-        text_surf = font.render(self.text, True, TEXT_COLOR)
-        text_rect = text_surf.get_rect(center=self.rect.center)
-        surface.blit(text_surf, text_rect)
-
-    def is_clicked(self, event):
-        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            if self.rect.collidepoint(event.pos):
-                return True
-        return False
+from ui import Button, BG_COLOR, TEXT_COLOR
+from menus import Menus
 
 class GameView:
     def __init__(self):
@@ -42,172 +12,47 @@ class GameView:
         self.font_large = pygame.font.SysFont(None, 64)
         self.font_medium = pygame.font.SysFont(None, 40)
         self.font_small = pygame.font.SysFont(None, 28)
-        
-        # Pamięć podręczna dla trójwymiarowych pionków
+
+        self.menus = Menus(self.screen, self.width, self.height, self.font_large, self.font_medium, self.font_small)
+
         self.black_piece = None
         self.white_piece = None
         self._current_radius = 0
 
-
     def show_main_menu(self):
-        buttons = [
-            Button(350, 200, 300, 60, "Othello", "Othello"),
-            Button(350, 280, 300, 60, "Tic Tac Toe (3x3)", "TicTacToe"),
-            Button(350, 360, 300, 60, "Tic Tac Toe (5x5)", "TicTacToe5"),
-            Button(350, 440, 300, 60, "Gomoku(15x15)", "Gomoku15"),
-            Button(350, 520, 300, 60, "Gomoku(19x19)", "Gomoku19"),
-            Button(50, 50, 120, 40, "Exit", "QUIT")
-        ]
-
-        while True:
-            mouse_pos = pygame.mouse.get_pos()
-            self.screen.fill(BG_COLOR)
-
-            title = self.font_large.render("CHOOSE GAME", True, TEXT_COLOR)
-            self.screen.blit(title, (self.width//2 - title.get_width()//2, 80))
-
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    return 'QUIT'
-                for btn in buttons:
-                    if btn.is_clicked(event):
-                        return btn.value
-
-            for btn in buttons:
-                btn.draw(self.screen, self.font_medium, mouse_pos)
-
-            pygame.display.flip()
-
+        return self.menus.show_main_menu()
 
     def show_setup_menu(self, selected_game):
-        modes = [
-            Button(200, 200, 180, 50, "Player vs Player", "PvP"),
-            Button(410, 200, 180, 50, "Player vs Bot", "PvE"),
-            Button(620, 200, 180, 50, "Bot vs Bot", "CvC")
-        ]
-        modes[1].is_selected = True
-        current_mode = "PvE"
+        return self.menus.show_setup_menu(selected_game)
 
-        colors = [
-            Button(250, 320, 220, 50, "You Start", "X"),
-            Button(530, 320, 220, 50, "Bot Starts", "O")
-        ]
-        colors[1].is_selected = True
-        current_color = "O"
+    def show_end_screen(self, winner, board=None, p1_type="Human", p2_type="Bot"):
+        return self.menus.show_end_screen(winner, board, p1_type, p2_type)
 
-        diffs = [
-            Button(200, 440, 180, 50, "Easy", 1),
-            Button(410, 440, 180, 50, "Medium", 2),
-            Button(620, 440, 180, 50, "Hard", 3)
-        ]
-        diffs[1].is_selected = True 
-        current_diff = 2
+    def _create_piece_surface(self, radius, base_color, highlight_color):
+        size = radius * 2 + 8
+        surface = pygame.Surface((size, size), pygame.SRCALPHA)
+        
+        center_x = size // 2 - 2
+        center_y = size // 2 - 2
 
-        diffs_b1 = [
-            Button(200, 320, 180, 50, "Easy", 1),
-            Button(410, 320, 180, 50, "Medium", 2),
-            Button(620, 320, 180, 50, "Hard", 3)
-        ]
-        diffs_b1[1].is_selected = True
-        current_diff_b1 = 2
+        pygame.draw.circle(surface, (0, 0, 0, 90), (center_x + 3, center_y + 4), radius)
 
-        diffs_b2 = [
-            Button(200, 440, 180, 50, "Easy", 1),
-            Button(410, 440, 180, 50, "Medium", 2),
-            Button(620, 440, 180, 50, "Hard", 3)
-        ]
-        diffs_b2[1].is_selected = True
-        current_diff_b2 = 2
-
-        start_btn = Button(400, 560, 200, 60, "Start game", "START")
-        exit_btn = Button(50, 50, 120, 40, "Exit", "QUIT")
-        back_btn = Button(50, 100, 120, 40, "Return", "BACK")
-
-        while True:
-            mouse_pos = pygame.mouse.get_pos()
-            self.screen.fill(BG_COLOR)
-
-            title = self.font_large.render(f"SETTINGS: {selected_game}", True, TEXT_COLOR)
-            self.screen.blit(title, (self.width//2 - title.get_width()//2, 80))
-
-            self.screen.blit(self.font_medium.render("Game Mode:", True, TEXT_COLOR), (420, 160))
+        for i in range(radius):
+            factor = i / radius 
+            r = base_color[0] + (highlight_color[0] - base_color[0]) * factor
+            g = base_color[1] + (highlight_color[1] - base_color[1]) * factor
+            b = base_color[2] + (highlight_color[2] - base_color[2]) * factor
             
-            if current_mode == "PvE":
-                self.screen.blit(self.font_medium.render("Staring Order:", True, TEXT_COLOR), (405, 280))
-                self.screen.blit(self.font_medium.render("Difficulty:", True, TEXT_COLOR), (430, 400))
-            elif current_mode == "CvC":
-                self.screen.blit(self.font_medium.render("Bot 1 Level", True, TEXT_COLOR), (425, 280))
-                self.screen.blit(self.font_medium.render("Bot 2 Level", True, TEXT_COLOR), (425, 400))
-
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT or exit_btn.is_clicked(event):
-                    return "QUIT"
-                
-                if back_btn.is_clicked(event):
-                    return "BACK"
-                    
-                if start_btn.is_clicked(event):
-                    bot_c = "O" if current_color == "X" else "X"
-                
-                    if current_mode == "CvC":
-                        diff_pack = {1: current_diff_b1, -1: current_diff_b2}
-                    elif current_mode == "PvE":
-                        diff_pack = current_diff
-                    else:
-                        diff_pack = None
-
-                    return (current_mode, bot_c, diff_pack, None)
-
-                for btn in modes:
-                    if btn.is_clicked(event):
-                        for b in modes: b.is_selected = False
-                        btn.is_selected = True
-                        current_mode = btn.value
-                
-                if current_mode == "PvE":
-                    for btn in colors:
-                        if btn.is_clicked(event):
-                            for b in colors: b.is_selected = False
-                            btn.is_selected = True
-                            current_color = btn.value
-                    for btn in diffs:
-                        if btn.is_clicked(event):
-                            for b in diffs: b.is_selected = False
-                            btn.is_selected = True
-                            current_diff = btn.value
-                    
-                if current_mode in ["CvC"]:
-                    for btn in diffs_b1:
-                        if btn.is_clicked(event):
-                            for b in diffs_b1: b.is_selected = False
-                            btn.is_selected = True
-                            current_diff_b1 = btn.value
-                    for btn in diffs_b2:
-                        if btn.is_clicked(event):
-                            for b in diffs_b2: b.is_selected = False
-                            btn.is_selected = True
-                            current_diff_b2 = btn.value
-
-            back_btn.draw(self.screen, self.font_medium, mouse_pos)
-            start_btn.draw(self.screen, self.font_medium, mouse_pos)
-            exit_btn.draw(self.screen, self.font_medium, mouse_pos)
-            
-            for btn in modes: btn.draw(self.screen, self.font_small, mouse_pos)
-            
-            if current_mode == "PvE":
-                for btn in colors: btn.draw(self.screen, self.font_small, mouse_pos)
-                for btn in diffs: btn.draw(self.screen, self.font_small, mouse_pos)
-            if current_mode in ["CvC"]:
-                for btn in diffs_b1: btn.draw(self.screen, self.font_small, mouse_pos)
-                for btn in diffs_b2: btn.draw(self.screen, self.font_small, mouse_pos)
-
-            pygame.display.flip()
-
+            offset = int(factor * (radius * 0.45))
+            pygame.draw.circle(surface, (int(r), int(g), int(b)), 
+                            (center_x - offset, center_y - offset), radius - i)
+                            
+        return surface
 
     def _draw_board_grid(self, board, board_color_theme):
         themes = {
-            "CLASSIC": ((34, 125, 34), (0, 0, 0)),
-            "MODERN": ((74, 25, 26), (10, 0, 10))
+            "CLASSIC": ((34, 139, 34), (0, 0, 0)),
+            "MODERN": ((74, 18, 26), (10, 0, 10))
         }
         bg_col, line_col = themes.get(board_color_theme, themes["CLASSIC"])
 
@@ -235,13 +80,13 @@ class GameView:
             self._current_radius = radius
             self.black_piece = self._create_piece_surface(
                 radius, 
-                base_color=(0, 0, 0), 
-                highlight_color=(100, 100, 120)
+                base_color=(71, 74, 81), 
+                highlight_color=(150, 153, 160)
             )
             self.white_piece = self._create_piece_surface(
                 radius, 
-                base_color=(80, 80, 80), 
-                highlight_color=(250, 250, 250)
+                base_color=(74, 4, 21), 
+                highlight_color=(170, 50, 70)
             )
 
         for index, mark in enumerate(grid):
@@ -265,41 +110,15 @@ class GameView:
             elif mark == 'O':
                 pygame.draw.circle(self.screen, (50, 50, 200), center, self.cell_w // 2 - 10, 5)
 
-
-    def _create_piece_surface(self, radius, base_color, highlight_color):
-        size = radius * 2 + 8
-        surface = pygame.Surface((size, size), pygame.SRCALPHA)
-        
-        center_x = size // 2 - 2
-        center_y = size // 2 - 2
-
-        # 1. Shade
-        pygame.draw.circle(surface, (0, 0, 0, 90), (center_x + 3, center_y + 4), radius)
-
-        # 2. 3D effect 
-        for i in range(radius):
-            factor = i / radius 
-            r = base_color[0] + (highlight_color[0] - base_color[0]) * factor
-            g = base_color[1] + (highlight_color[1] - base_color[1]) * factor
-            b = base_color[2] + (highlight_color[2] - base_color[2]) * factor
-            
-            offset = int(factor * (radius * 0.45))
-            pygame.draw.circle(surface, (int(r), int(g), int(b)), 
-                             (center_x - offset, center_y - offset), radius - i)
-                             
-        return surface
-
     def _draw_hud(self, score, current_player_mark, board, p1_type, p2_type):
         hud_rect = pygame.Rect(700, 0, 300, 700)
         pygame.draw.rect(self.screen, (40, 40, 40), hud_rect) 
         pygame.draw.line(self.screen, (100, 100, 100), (700, 0), (700, 700), 3)
 
-        # Dynamiczne rozpoznawanie nazw symboli na podstawie typu planszy
         is_othello = hasattr(board, 'white_pieces')
         m1 = "Black" if is_othello else "X"
         m2 = "White" if is_othello else "O"
 
-        # np. p1_type.capitalize() zmieni "HUMAN" na "Human", "BOT" na "Bot"
         p1_name = f"{p1_type.capitalize()} ({m1})"
         p2_name = f"{p2_type.capitalize()} ({m2})"
 
@@ -319,10 +138,8 @@ class GameView:
         
         self._draw_board_grid(board, board_color)
         
-        # Sprawdzamy czy to Othello (tylko Othello ma białe pionki w logice)
         is_othello = hasattr(board, 'white_pieces')
         
-        # Rysuj kropki tylko, gdy włączone i gra to Othello
         if show_possible_moves and is_othello:
             legal = board.get_legal_moves(current_player_mark)
             cols = getattr(board, 'width', 8)
@@ -334,14 +151,12 @@ class GameView:
         self._draw_pieces(board)
         self._draw_hud(score, current_player_mark, board, p1_type, p2_type)
 
-        # Buttons during the game
         self.hud_buttons = {
             "UNDO": Button(750, 400, 200, 50, "Undo"),
             "CHANGE_COLOR": Button(750, 470, 200, 50, "Color Theme"),
             "MAIN_MENU": Button(750, 540, 200, 50, "Menu")
         }
 
-        # Buttons during othello game
         if is_othello:
             self.hud_buttons["TOGGLE_HINT"] = Button(750, 470, 200, 50, "Hints On/Off")
             self.hud_buttons["CHANGE_COLOR"].rect.y = 540
@@ -376,41 +191,3 @@ class GameView:
                     if index in board.get_legal_moves(current_player_mark):
                         return index
         return None
-
-    def show_end_screen(self, winner, board=None, p1_type="Human", p2_type="Bot"):
-        overlay = pygame.Surface((self.width, self.height))
-        overlay.set_alpha(200)
-        overlay.fill((0, 0, 0))
-        self.screen.blit(overlay, (0, 0))
-
-        # Dynamiczne przypisanie liter do zwycięzcy
-        if board:
-            is_othello = hasattr(board, 'white_pieces')
-            m1 = "Black" if is_othello else "X"
-            m2 = "White" if is_othello else "O"
-        else:
-            m1, m2 = "X", "O"
-
-        p1_name = f"{p1_type.capitalize()} ({m1})"
-        p2_name = f"{p2_type.capitalize()} ({m2})"
-
-        if winner == 1: text = f"{p1_name} Won!"
-        elif winner == -1: text = f"{p2_name} Won!"
-        else: text = "DRAW!"
-        
-        title = self.font_large.render(text, True, (255, 215, 0))
-        self.screen.blit(title, (self.width//2 - title.get_width()//2, 200))
-
-        restart_btn = Button(300, 400, 180, 60, "Play Again", "RESTART")
-        menu_btn = Button(520, 400, 180, 60, "Menu", "MAIN_MENU")
-
-        while True:
-            mouse_pos = pygame.mouse.get_pos()
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT: return "QUIT"
-                if restart_btn.is_clicked(event): return "RESTART"
-                if menu_btn.is_clicked(event): return "MAIN_MENU"
-
-            restart_btn.draw(self.screen, self.font_medium, mouse_pos)
-            menu_btn.draw(self.screen, self.font_medium, mouse_pos)
-            pygame.display.flip()

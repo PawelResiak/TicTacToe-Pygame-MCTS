@@ -124,7 +124,7 @@ class Game:
 
         # 2. Nasłuchiwanie "globalnych" zdarzeń systemowych (Wyjście z gry)
         event_data = self.interface.get_playing_events(self.board, self.current_player_mark)
-        if event_data:
+        if event_data is not None:
             if event_data == "QUIT":
                 self.state = "QUIT"
                 return
